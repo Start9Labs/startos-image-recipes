@@ -1,0 +1,194 @@
+{{- $image := or .image "startos-debos" -}}
+{{- $results_dir := or .results_dir "$ARTIFACTDIR/results" -}}
+
+{{- $arch := or .arch "amd64" -}}
+{{- $platform := or .platform $arch -}}
+{{- $kernel_flavour := or .kernel_flavour $arch -}}
+
+{{- $version := or .version "latest" -}}
+
+{{- $mirror := or .mirror "https://deb.debian.org/debian" -}}
+
+architecture: {{ $arch }}
+
+actions:
+  - action: run
+    description: Setup wget config
+    chroot: false
+    script: scripts/setup-wgetrc.sh
+    
+  - action: debootstrap
+    suite: bullseye
+    components:
+      - main
+    mirror: {{ $mirror }}
+
+  - action: apt
+    recommends: false
+    packages: [ curl, gpg ]
+
+  - action: run
+    description: Setup apt sources
+    chroot: true
+    script: scripts/setup-apt-sources.sh
+
+  - action: overlay
+    source: overlays/
+
+  - action: run
+    description: Install StartOS
+    chroot: true
+    script: scripts/01-install-startos.sh
+
+  - action: recipe
+    description: Platform-specific recipe
+    recipe: recipes/{{ $platform }}.yaml
+
+  - action: run
+    chroot: true
+    command: apt-get clean
+
+  #
+  # Configure the OS image
+  #
+  - action: run
+    chroot: true
+    command: echo start > /etc/hostname
+
+  # - action: run
+  #   chroot: true
+  #   script: scripts/os/01-set-locale.sh
+
+  # - action: run
+  #   chroot: true
+  #   script: scripts/os/02-plymouth-theme.sh
+
+  # - action: run
+  #   chroot: true
+  #   script: scripts/os/03-command-not-found.sh
+
+  # - action: run
+  #   chroot: true
+  #   script: scripts/os/04-apt-appstream.sh
+
+  # - action: run
+  #   chroot: true
+  #   script: scripts/os/05-package-hacks.sh
+
+  #
+  # Finish OS image configuration
+  #
+  - action: run
+    description: Update initramfs
+    label: update-initramfs
+    chroot: true
+    command: CASPER_GENERATE_UUID=1 update-initramfs -k all -t -u
+
+  - action: run
+    description: Collect infos & logs
+    label: collect-logs
+    chroot: true
+    script: scripts/collect-logs.sh
+
+  # - action: run
+  #   description: Collect infos & logs
+  #   label: collect-logs
+  #   chroot: true
+  #   script: scripts/os/collect-logs.sh
+
+  #
+  # Create ISO image contents
+  #
+  - action: run
+    label: cleanup
+    command: rm -rf "$ARTIFACTDIR/disk-ws-tmp/"
+
+  - action: run
+    label: make-ws
+    command: bash -c 'mkdir -p $ARTIFACTDIR/disk-ws-tmp/{contents/{EFI/boot,boot/grub/x86_64-efi,isolinux,casper},tmp}'
+
+  - action: run
+    description: Copy kernel & initramfs
+    label: copy-kernel-initramfs
+    script: scripts/disk/copy-kernel-initramfs.sh
+
+{{ if eq $arch "amd64" }}
+  - action: run
+    description: Copy bootloaders
+    label: copy-bootloaders
+    script: scripts/disk/copy-bootloaders.sh
+{{ end }}
+
+  - action: run
+    description: Create SquashFS image
+    label: make-squashfs
+    command: mksquashfs
+               $ROOTDIR
+               $ARTIFACTDIR/disk-ws-tmp/contents/casper/filesystem.squashfs
+               -e build-info
+               -comp zstd
+
+  - action: run
+    label: copy-package-list-disk
+    command: cp $ROOTDIR/build-info/packages.manifest $ARTIFACTDIR/disk-ws-tmp/contents/casper/filesystem.manifest
+
+{{ if eq $arch "amd64" }}
+  - action: run
+    description: Make bootloader config files
+    label: make-bootloader-config
+    script: scripts/disk/make-bootloader-config.sh {{ $version }}
+
+  - action: run
+    description: Create UEFI boot disk image
+    label: make-uefi-boot-disk
+    script: scripts/disk/make-uefi-boot-disk.sh {{ $arch }}
+{{ end }}
+
+  - action: run
+    description: Setup disk info
+    label: setup-disk-info
+    script: scripts/disk/setup-disk-info.sh {{ $version }} {{ $arch }}
+
+  #
+  # Write image
+  #
+  - action: run
+    command: mkdir -p "{{ $results_dir }}"
+  - action: run
+    description: Create hybrid ISO image
+    label: make-isohybrid
+    command: xorriso
+               -outdev "{{ $results_dir }}/{{ $image }}.iso"
+               -volid "StartOS {{ $version }}"
+               -padding 0
+               -compliance no_emul_toc
+               -map $ARTIFACTDIR/disk-ws-tmp/contents /
+               -chmod 0755 / --
+               -boot_image isolinux dir=/isolinux
+                 -boot_image isolinux system_area=/usr/lib/ISOLINUX/isohdpfx.bin
+               -boot_image any next
+                 -boot_image any efi_path=boot/grub/efi.img
+                 -boot_image isolinux partition_entry=gpt_basdat
+
+  - action: run
+    description: Make zsync file
+    label: zsync
+    command: cd "{{ $results_dir }}" && zsyncmake -C -b 2048 -u {{ $image }}.iso "{{ $results_dir }}/{{ $image }}.iso"
+
+  - action: run
+    description: Copy package list
+    label: copy-package-list
+    command: cp $ROOTDIR/build-info/packages.manifest "{{ $results_dir }}/{{ $image }}.packages"
+
+  - action: run
+    description: Write checksums
+    label: checksums
+    script: scripts/finish/make-checksums.sh "{{ $image }}" "{{ $results_dir }}"
+
+  #
+  # Cleanup
+  #
+  - action: run
+    description: Cleanup
+    label: cleanup
+    command: rm -rf "$ARTIFACTDIR/disk-ws-tmp/"
