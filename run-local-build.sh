@@ -31,7 +31,7 @@ if [ -z "$1" ]; then
 fi
 
 BASEDIR=$(dirname "$(readlink -f "$0")")
-SUITE=byzantium
+SUITE=bullseye
 ARCH="$1"
 if [ -z "$1" ]; then
     ARCH="$(uname -m)"
@@ -63,13 +63,14 @@ export VERSION_FULL=${VERSION_FULL}
 exec ./build.sh
 END
 
+prepare_hash=$(sha1sum ${BASEDIR}/prepare.sh | head -c 7)
+
 mkdir -p ${BASEDIR}/results
 set +e
 debspawn run \
 	-x \
-	--arch=${ARCH} \
 	--allow=kvm,read-kmods \
-	--cachekey="${SUITE}-mkimage" \
+	--cachekey="${SUITE}-${prepare_hash}-mkimage" \
 	--init-command="${BASEDIR}/prepare.sh" \
 	--build-dir=${BASEDIR} \
 	--artifacts-out=${BASEDIR}/results \
@@ -78,7 +79,6 @@ debspawn run \
 	${DSNAME} \
 	${imgbuild_fname}
 
-# cleanup
 retval=$?
 rm $imgbuild_fname
 if [ $retval -ne 0 ]; then
