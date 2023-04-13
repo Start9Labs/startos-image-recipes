@@ -69,7 +69,7 @@ mkdir -p ${BASEDIR}/results
 set +e
 debspawn run \
 	-x \
-	--allow=kvm,read-kmods \
+	--allow=read-kmods \
 	--cachekey="${SUITE}-${prepare_hash}-mkimage" \
 	--init-command="${BASEDIR}/prepare.sh" \
 	--build-dir=${BASEDIR} \
