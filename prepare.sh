@@ -12,4 +12,7 @@ apt-get install -yq \
 	qemu-system-x86 \
 	qemu-system-aarch64 \
 	xorriso \
-	isolinux
+	isolinux \
+	ca-certificates \
+	curl \
+	gpg

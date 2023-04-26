@@ -25,11 +25,6 @@ done
 
 set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
 
-if [ -z "$1" ]; then
-	echo "usage: $0 [ARCH] [PLATFORM]"
-	exit 1
-fi
-
 BASEDIR=$(dirname "$(readlink -f "$0")")
 SUITE=bullseye
 ARCH="$1"
@@ -40,6 +35,10 @@ if [ -z "$1" ]; then
 	elif [ "$ARCH" == "aarch64" ]; then
 		ARCH=arm64
 	fi
+fi
+PLATFORM="$2"
+if [ -z "$2" ]; then
+    PLATFORM="$ARCH"
 fi
 VERSION="$(dpkg-deb --fsys-tarfile overlays/deb/embassyos_0.3.x-1_${ARCH}.deb | tar --to-stdout -xvf - ./usr/lib/embassy/VERSION.txt)"
 GIT_HASH="$(dpkg-deb --fsys-tarfile overlays/deb/embassyos_0.3.x-1_${ARCH}.deb | tar --to-stdout -xvf - ./usr/lib/embassy/GIT_HASH.txt | head -c 7)"
@@ -59,6 +58,7 @@ cat > $imgbuild_fname <<END
 
 export IB_SUITE=${SUITE}
 export IB_TARGET_ARCH=${ARCH}
+export IB_TARGET_PLATFORM=${PLATFORM}
 export VERSION_FULL=${VERSION_FULL}
 exec ./build.sh
 END

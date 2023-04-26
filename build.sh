@@ -25,31 +25,134 @@ mkdir -p $prep_results_dir
 cd $prep_results_dir
 
 QEMU_ARCH=${IB_TARGET_ARCH}
+BOOTLOADERS=grub-efi,syslinux
 if [ "$QEMU_ARCH" = 'amd64' ]; then
 	QEMU_ARCH=x86_64
 elif [ "$QEMU_ARCH" = 'arm64' ]; then
 	QEMU_ARCH=aarch64
+  BOOTLOADERS=grub-efi
 fi
 
-lb config --bootloaders grub-efi,syslinux -d ${IB_SUITE} -a ${IB_TARGET_ARCH} --bootstrap-qemu-arch ${IB_TARGET_ARCH} --bootstrap-qemu-static $(which qemu-${QEMU_ARCH}-static)
+if [ "$QEMU_ARCH" != "$(uname -m)" ]; then
+  update-binfmts --import qemu-$QEMU_ARCH
+fi
+
+ARCHIVE_AREAS="main contrib"
+if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
+  ARCHIVE_AREAS="main contrib non-free"
+fi
+
+PLATFORM_CONFIG_EXTRAS=
+if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
+  PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --firmware-binary false"
+	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --firmware-chroot false"
+  # BEGIN stupid ugly hack
+  # The actual name of the package is `raspberrypi-kernel`
+  # live-build determines thte name of the package for the kernel by combining the `linux-packages` flag, with the `linux-flavours` flag
+  # the `linux-flavours` flag defaults to the architecture, so there's no way to remove the suffix.
+  # So we're doing this, cause thank the gods our package name contains a hypen. Cause if it didn't we'd be SOL
+	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --linux-packages raspberrypi"
+	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --linux-flavours kernel"
+  # END stupid ugly hack
+fi
+
+cat > /etc/wgetrc << EOF
+retry_connrefused = on
+tries = 100
+EOF
+lb config \
+  --backports true \
+  --bootappend-live "boot=live noautologin" \
+  --bootloaders $BOOTLOADERS \
+  --mirror-bootstrap "https://deb.debian.org/debian/" \
+  -d ${IB_SUITE} \
+  -a ${IB_TARGET_ARCH} \
+  --bootstrap-qemu-arch ${IB_TARGET_ARCH} \
+  --bootstrap-qemu-static $(which qemu-${QEMU_ARCH}-static) \
+  --archive-areas "${ARCHIVE_AREAS}" \
+  $PLATFORM_CONFIG_EXTRAS
+
+mkdir -p config/includes.chroot
 cp -r $base_dir/overlays/* config/includes.chroot/
-echo "isolinux" >> config/package-lists/isolinux.list.binary
-lb build || find / -name debootstrap.log | xargs cat && false
+mkdir -p config/archives
 
-cd $base_dir
 
-# rm -rf ./disk-ws-tmp/
-# echo
-# debos \
-# 	-m4G \
-# 	-c4 \
-# 	--scratchsize=8G \
-# 	startos-iso.yaml \
-# 	-t arch:"${IB_TARGET_ARCH}" \
-# 	-t version:"${VERSION_FULL}" \
-# 	-t image:"$IMAGE_BASENAME" \
-# 	-t results_dir:"$prep_results_dir"
-# echo "mv $prep_results_dir/* $RESULTS_DIR/"
-mv $prep_results_dir/live-image-${IB_TARGET_ARCH}.hybrid.iso $RESULTS_DIR/$IMAGE_BASENAME.iso
+if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
+  curl -fsSL https://archive.raspberrypi.org/debian/raspberrypi.gpg.key | gpg --dearmor -o config/archives/raspi.key
+  echo "deb https://archive.raspberrypi.org/debian/ ${IB_SUITE} main" > config/archives/raspi.list
+fi
 
-find $RESULTS_DIR
+curl -fsSL https://deb.torproject.org/torproject.org/A3C4F0F979CAA22CDBA8F512EE8CBC9E886DDD89.asc > config/archives/tor.key
+echo "deb [arch=${IB_TARGET_ARCH} signed-by=/etc/apt/trusted.gpg.d/tor.key.gpg] https://deb.torproject.org/torproject.org ${IB_SUITE} main" > config/archives/tor.list
+
+curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o config/archives/docker.key
+echo "deb [arch=${IB_TARGET_ARCH} signed-by=/etc/apt/trusted.gpg.d/docker.key.gpg] https://download.docker.com/linux/debian ${IB_SUITE} stable" > config/archives/docker.list
+
+cat > config/archives/backports.pref << EOT
+Package: *
+Pin: release a=bullseye-backports
+Pin-Priority: 900
+EOT
+
+dpkg-deb --fsys-tarfile $base_dir/overlays/deb/embassyos_0.3.x-1_${IB_TARGET_ARCH}.deb | tar --to-stdout -xvf - ./usr/lib/embassy/depends > config/package-lists/embassy-depends.list.chroot
+if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
+  echo 'raspberrypi-bootloader firmware-ralink rpi-update' > config/package-lists/raspberrypi.list.chroot
+elif [ "${IB_TARGET_ARCH}" = "arm64" ]; then
+  echo 'grub-efi grub2-common' > config/package-lists/grub.list.chroot
+else
+  echo 'grub-efi grub-pc-bin grub2-common' > config/package-lists/grub.list.chroot
+fi
+cat > config/hooks/normal/9000-install-startos.hook.chroot << EOF
+#!/bin/bash
+
+set -e
+
+apt-get install -y /deb/embassyos_0.3.x-1_${IB_TARGET_ARCH}.deb
+rm -rf /deb
+
+echo embassy > /etc/hostname
+
+cat > /etc/hosts << EOT
+127.0.0.1       localhost
+::1             localhost ip6-localhost ip6-loopback
+ff02::1         ip6-allnodes
+ff02::2         ip6-allrouters
+EOT
+
+useradd --shell /bin/bash -G embassy -m start9
+echo start9:embassy | chpasswd
+usermod -aG sudo start9
+
+echo "start9 ALL=(ALL:ALL) NOPASSWD: ALL" | sudo tee "/etc/sudoers.d/010_start9-nopasswd"
+
+/usr/lib/embassy/scripts/enable-kiosk
+
+rm /usr/local/bin/apt-get
+
+EOF
+
+if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
+  lb bootstrap
+  lb chroot
+  lb binary_chroot
+  lb chroot_prep install devpts proc selinuxfs sysfs
+  lb chroot_devpts install
+  lb chroot_proc install
+  lb chroot_selinuxfs install
+  lb chroot_sysfs install
+  lb chroot_prep install dpkg tmpfs sysv-rc hosts resolv hostname apt mode-apt-install-binary mode-archives-chroot
+  lb chroot_dpkg install
+  lb chroot_tmpfs install
+  lb chroot_sysv-rc install
+  lb chroot_hosts install
+  lb chroot_resolv install
+  lb chroot_hostname install
+  lb chroot_apt install-binary
+  lb chroot_archives chroot install
+  lb binary_rootfs
+  mv $prep_results_dir/binary/live/filesystem.squashfs $RESULTS_DIR/$IMAGE_BASENAME.squashfs
+else
+  lb build
+  mv $prep_results_dir/binary/live/filesystem.squashfs $RESULTS_DIR/$IMAGE_BASENAME.squashfs
+  mv $prep_results_dir/live-image-${IB_TARGET_ARCH}.hybrid.iso $RESULTS_DIR/$IMAGE_BASENAME.iso
+fi
