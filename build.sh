@@ -72,10 +72,13 @@ lb config \
   --archive-areas "${ARCHIVE_AREAS}" \
   $PLATFORM_CONFIG_EXTRAS
 
+# Overlays
 mkdir -p config/includes.chroot
 cp -r $base_dir/overlays/* config/includes.chroot/
-mkdir -p config/archives
 
+# Archives
+
+mkdir -p config/archives
 
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
   curl -fsSL https://archive.raspberrypi.org/debian/raspberrypi.gpg.key | gpg --dearmor -o config/archives/raspi.key
@@ -96,7 +99,7 @@ EOT
 
 dpkg-deb --fsys-tarfile $base_dir/overlays/deb/embassyos_0.3.x-1_${IB_TARGET_ARCH}.deb | tar --to-stdout -xvf - ./usr/lib/embassy/depends > config/package-lists/embassy-depends.list.chroot
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
-  echo 'raspberrypi-bootloader firmware-ralink rpi-update' > config/package-lists/raspberrypi.list.chroot
+  echo 'raspberrypi-bootloader firmware-ralink rpi-update parted' > config/package-lists/raspberrypi.list.chroot
 elif [ "${IB_TARGET_ARCH}" = "arm64" ]; then
   echo 'grub-efi grub2-common' > config/package-lists/grub.list.chroot
 else
@@ -109,6 +112,10 @@ set -e
 
 apt-get install -y /deb/embassyos_0.3.x-1_${IB_TARGET_ARCH}.deb
 rm -rf /deb
+
+if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
+  update-initramfs -c -k 6.1.21-v8+
+fi
 
 echo embassy > /etc/hostname
 
@@ -125,7 +132,9 @@ usermod -aG sudo start9
 
 echo "start9 ALL=(ALL:ALL) NOPASSWD: ALL" | sudo tee "/etc/sudoers.d/010_start9-nopasswd"
 
-/usr/lib/embassy/scripts/enable-kiosk
+if [ "${IB_TARGET_PLATFORM}" != "raspberrypi" ]; then
+  /usr/lib/embassy/scripts/enable-kiosk
+fi
 
 rm /usr/local/bin/apt-get
 
