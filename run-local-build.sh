@@ -27,18 +27,16 @@ set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
 
 BASEDIR=$(dirname "$(readlink -f "$0")")
 SUITE=bullseye
-ARCH="$1"
+PLATFORM="$1"
 if [ -z "$1" ]; then
-    ARCH="$(uname -m)"
-	if [ "$ARCH" == "x86_64" ]; then
-		ARCH=amd64
-	elif [ "$ARCH" == "aarch64" ]; then
-		ARCH=arm64
-	fi
+    PLATFORM="$(uname -m)"
 fi
-PLATFORM="$2"
-if [ -z "$2" ]; then
-    PLATFORM="$ARCH"
+if [ "$PLATFORM" = "x86_64" ] || [ "$PLATFORM" = "x86_64-nonfree" ]; then
+	ARCH=amd64
+elif [ "$PLATFORM" = "aarch64" ] || [ "$PLATFORM" = "aarch64-nonfree" ] || [ "$PLATFORM" = "raspberrypi" ]; then
+	ARCH=arm64
+else
+	ARCH="$PLATFORM"
 fi
 VERSION="$(dpkg-deb --fsys-tarfile overlays/deb/embassyos_0.3.x-1_${ARCH}.deb | tar --to-stdout -xvf - ./usr/lib/embassy/VERSION.txt)"
 GIT_HASH="$(dpkg-deb --fsys-tarfile overlays/deb/embassyos_0.3.x-1_${ARCH}.deb | tar --to-stdout -xvf - ./usr/lib/embassy/GIT_HASH.txt | head -c 7)"

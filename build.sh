@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 set -e
 
 echo "==== StartOS Image Build ===="
@@ -32,13 +32,17 @@ elif [ "$QEMU_ARCH" = 'arm64' ]; then
 	QEMU_ARCH=aarch64
   BOOTLOADERS=grub-efi
 fi
+NON_FREE=
+if [[ "${IB_TARGET_PLATFORM}" =~ -nonfree$ ]] || [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
+  NON_FREE=1
+fi
 
 if [ "$QEMU_ARCH" != "$(uname -m)" ]; then
   update-binfmts --import qemu-$QEMU_ARCH
 fi
 
 ARCHIVE_AREAS="main contrib"
-if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
+if [ "$NON_FREE" = 1 ]; then
   ARCHIVE_AREAS="main contrib non-free"
 fi
 
@@ -97,14 +101,25 @@ Pin: release a=bullseye-backports
 Pin-Priority: 900
 EOT
 
+# Dependencies
+
+## Base dependencies
 dpkg-deb --fsys-tarfile $base_dir/overlays/deb/embassyos_0.3.x-1_${IB_TARGET_ARCH}.deb | tar --to-stdout -xvf - ./usr/lib/embassy/depends > config/package-lists/embassy-depends.list.chroot
-if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
-  echo 'raspberrypi-bootloader firmware-brcm80211 rpi-update parted' > config/package-lists/raspberrypi.list.chroot
-elif [ "${IB_TARGET_ARCH}" = "arm64" ]; then
-  echo 'grub-efi grub2-common' > config/package-lists/grub.list.chroot
-else
-  echo 'grub-efi grub-pc-bin grub2-common' > config/package-lists/grub.list.chroot
+
+## Firmware
+if [ "$NON_FREE" = 1 ]; then
+  echo 'firmware-iwlwifi firmware-misc-nonfree firmware-brcm80211' > config/package-lists/nonfree.list.chroot
 fi
+
+if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
+  echo 'raspberrypi-bootloader rpi-update parted' > config/package-lists/bootloader.list.chroot
+else
+  echo 'grub-efi grub2-common' > config/package-lists/bootloader.list.chroot
+fi
+if [ "${IB_TARGET_ARCH}" = "amd64" ] || [ "${IB_TARGET_ARCH}" = "i386" ]; then
+  echo 'grub-pc-bin' >> config/package-lists/bootloader.list.chroot
+fi
+
 cat > config/hooks/normal/9000-install-startos.hook.chroot << EOF
 #!/bin/bash
 
