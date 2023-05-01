@@ -99,7 +99,7 @@ EOT
 
 dpkg-deb --fsys-tarfile $base_dir/overlays/deb/embassyos_0.3.x-1_${IB_TARGET_ARCH}.deb | tar --to-stdout -xvf - ./usr/lib/embassy/depends > config/package-lists/embassy-depends.list.chroot
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
-  echo 'raspberrypi-bootloader firmware-ralink rpi-update parted' > config/package-lists/raspberrypi.list.chroot
+  echo 'raspberrypi-bootloader firmware-brcm80211 rpi-update parted' > config/package-lists/raspberrypi.list.chroot
 elif [ "${IB_TARGET_ARCH}" = "arm64" ]; then
   echo 'grub-efi grub2-common' > config/package-lists/grub.list.chroot
 else
