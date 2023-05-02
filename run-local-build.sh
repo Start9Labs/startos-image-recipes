@@ -25,21 +25,18 @@ done
 
 set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
 
-if [ -z "$1" ]; then
-	echo "usage: $0 [ARCH] [PLATFORM]"
-	exit 1
-fi
-
 BASEDIR=$(dirname "$(readlink -f "$0")")
-SUITE=byzantium
-ARCH="$1"
+SUITE=bullseye
+PLATFORM="$1"
 if [ -z "$1" ]; then
-    ARCH="$(uname -m)"
-	if [ "$ARCH" == "x86_64" ]; then
-		ARCH=amd64
-	elif [ "$ARCH" == "aarch64" ]; then
-		ARCH=arm64
-	fi
+    PLATFORM="$(uname -m)"
+fi
+if [ "$PLATFORM" = "x86_64" ] || [ "$PLATFORM" = "x86_64-nonfree" ]; then
+	ARCH=amd64
+elif [ "$PLATFORM" = "aarch64" ] || [ "$PLATFORM" = "aarch64-nonfree" ] || [ "$PLATFORM" = "raspberrypi" ]; then
+	ARCH=arm64
+else
+	ARCH="$PLATFORM"
 fi
 VERSION="$(dpkg-deb --fsys-tarfile overlays/deb/embassyos_0.3.x-1_${ARCH}.deb | tar --to-stdout -xvf - ./usr/lib/embassy/VERSION.txt)"
 GIT_HASH="$(dpkg-deb --fsys-tarfile overlays/deb/embassyos_0.3.x-1_${ARCH}.deb | tar --to-stdout -xvf - ./usr/lib/embassy/GIT_HASH.txt | head -c 7)"
@@ -59,17 +56,19 @@ cat > $imgbuild_fname <<END
 
 export IB_SUITE=${SUITE}
 export IB_TARGET_ARCH=${ARCH}
+export IB_TARGET_PLATFORM=${PLATFORM}
 export VERSION_FULL=${VERSION_FULL}
 exec ./build.sh
 END
+
+prepare_hash=$(sha1sum ${BASEDIR}/prepare.sh | head -c 7)
 
 mkdir -p ${BASEDIR}/results
 set +e
 debspawn run \
 	-x \
-	--arch=${ARCH} \
-	--allow=kvm,read-kmods \
-	--cachekey="${SUITE}-mkimage" \
+	--allow=read-kmods \
+	--cachekey="${SUITE}-${prepare_hash}-mkimage" \
 	--init-command="${BASEDIR}/prepare.sh" \
 	--build-dir=${BASEDIR} \
 	--artifacts-out=${BASEDIR}/results \
@@ -78,7 +77,6 @@ debspawn run \
 	${DSNAME} \
 	${imgbuild_fname}
 
-# cleanup
 retval=$?
 rm $imgbuild_fname
 if [ $retval -ne 0 ]; then

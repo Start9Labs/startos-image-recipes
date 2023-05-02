@@ -11,7 +11,7 @@ official StartOS images, you can use the `run-local-build.sh` helper script:
 sudo apt-get install -y debspawn
 sudo mkdir -p /etc/debspawn/ && echo "AllowUnsafePermissions=true" | sudo tee /etc/debspawn/global.toml
 
-debspawn create byzantium
+debspawn create stable
 
 # Get dpkg
 mkdir -p overlays/startos/root
