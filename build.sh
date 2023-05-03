@@ -16,7 +16,7 @@ echo "Saving results in: $RESULTS_DIR"
 
 CURRENT_DATE=$(date +%Y%m%d)
 
-IMAGE_BASENAME=startos-${VERSION_FULL}-${CURRENT_DATE}_${IB_TARGET_ARCH}
+IMAGE_BASENAME=startos-${VERSION_FULL}-${CURRENT_DATE}_${IB_TARGET_PLATFORM}
 
 ps --no-headers -o comm 1
 
