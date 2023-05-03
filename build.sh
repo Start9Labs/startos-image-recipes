@@ -18,8 +18,6 @@ CURRENT_DATE=$(date +%Y%m%d)
 
 IMAGE_BASENAME=startos-${VERSION_FULL}-${CURRENT_DATE}_${IB_TARGET_PLATFORM}
 
-ps --no-headers -o comm 1
-
 mkdir -p $prep_results_dir
 
 cd $prep_results_dir
