@@ -149,6 +149,10 @@ if [ "${IB_TARGET_PLATFORM}" != "raspberrypi" ]; then
   /usr/lib/embassy/scripts/enable-kiosk
 fi
 
+if ! [[ "${IB_OS_ENV}" =~ (^|-)dev($|-) ]]; then
+  passwd -l start9
+fi
+
 rm /usr/local/bin/apt-get
 
 EOF

@@ -57,6 +57,7 @@ cat > $imgbuild_fname <<END
 export IB_SUITE=${SUITE}
 export IB_TARGET_ARCH=${ARCH}
 export IB_TARGET_PLATFORM=${PLATFORM}
+export IB_OS_ENV=${STARTOS_ENV}
 export VERSION_FULL=${VERSION_FULL}
 exec ./build.sh
 END
