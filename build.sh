@@ -130,7 +130,7 @@ if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
   update-initramfs -c -k 6.1.21-v8+
 fi
 
-echo embassy > /etc/hostname
+echo start > /etc/hostname
 
 cat > /etc/hosts << EOT
 127.0.0.1       localhost
