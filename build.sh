@@ -157,6 +157,15 @@ rm /usr/local/bin/apt-get
 
 EOF
 
+cat > config/hooks/live/9000-grub-set-default.hook.chroot << EOF
+grub-set-default 0
+echo start > /etc/hostname
+EOF
+
+cat > config/hooks/live/isolinux.hook.binary << EOF
+sed -i 's|timeout 0|timeout 5|' isolinux/isolinux.cfg
+EOF
+
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
   lb bootstrap
   lb chroot
