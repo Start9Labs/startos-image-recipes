@@ -157,15 +157,16 @@ rm /usr/local/bin/apt-get
 
 EOF
 
-cat > config/hooks/live/9000-grub-set-default.hook.chroot << EOF
-grub-set-default 0
-echo start > /etc/hostname
+cat > config/hooks/live/9000-grub-set-default.hook.binary << EOF
+sed -i -e '1i set default=0' boot/grub/config.cfg
+sed -i -e '2i set timeout=5' boot/grub/config.cfg
 EOF
 
-if [[ "$BOOTLOADERS" =~ isolinux ]]
+if [[ "$BOOTLOADERS" =~ isolinux ]]; then
 cat > config/hooks/live/isolinux.hook.binary << EOF
 sed -i 's|timeout 0|timeout 5|' isolinux/isolinux.cfg
 EOF
+fi
 
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
   lb bootstrap
