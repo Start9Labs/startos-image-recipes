@@ -162,6 +162,7 @@ grub-set-default 0
 echo start > /etc/hostname
 EOF
 
+if [[ "$BOOTLOADERS" =~ isolinux ]]
 cat > config/hooks/live/isolinux.hook.binary << EOF
 sed -i 's|timeout 0|timeout 5|' isolinux/isolinux.cfg
 EOF
