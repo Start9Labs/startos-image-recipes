@@ -34,6 +34,10 @@ NON_FREE=
 if [[ "${IB_TARGET_PLATFORM}" =~ -nonfree$ ]] || [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
   NON_FREE=1
 fi
+SQUASHFS_ONLY=
+if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
+  SQUASHFS_ONLY=1
+fi
 
 if [ "$QEMU_ARCH" != "$(uname -m)" ]; then
   update-binfmts --import qemu-$QEMU_ARCH
@@ -75,8 +79,18 @@ lb config \
   $PLATFORM_CONFIG_EXTRAS
 
 # Overlays
+
 mkdir -p config/includes.chroot
 cp -r $base_dir/overlays/* config/includes.chroot/
+
+mkdir -p config/includes.chroot/etc
+echo start > config/includes.chroot/etc/hostname
+cat > config/includes.chroot/etc/hosts << EOT
+127.0.0.1       localhost
+::1             localhost ip6-localhost ip6-loopback
+ff02::1         ip6-allnodes
+ff02::2         ip6-allrouters
+EOT
 
 # Archives
 
@@ -130,15 +144,6 @@ if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
   update-initramfs -c -k 6.1.21-v8+
 fi
 
-echo start > /etc/hostname
-
-cat > /etc/hosts << EOT
-127.0.0.1       localhost
-::1             localhost ip6-localhost ip6-loopback
-ff02::1         ip6-allnodes
-ff02::2         ip6-allrouters
-EOT
-
 useradd --shell /bin/bash -G embassy -m start9
 echo start9:embassy | chpasswd
 usermod -aG sudo start9
@@ -153,8 +158,6 @@ if ! [[ "${IB_OS_ENV}" =~ (^|-)dev($|-) ]]; then
   passwd -l start9
 fi
 
-rm /usr/local/bin/apt-get
-
 EOF
 
 cat > config/hooks/live/9000-grub-set-default.hook.binary << EOF
@@ -168,28 +171,44 @@ sed -i 's|timeout 0|timeout 5|' isolinux/isolinux.cfg
 EOF
 fi
 
-if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
-  lb bootstrap
-  lb chroot
-  lb binary_chroot
-  lb chroot_prep install devpts proc selinuxfs sysfs
-  lb chroot_devpts install
-  lb chroot_proc install
-  lb chroot_selinuxfs install
-  lb chroot_sysfs install
-  lb chroot_prep install dpkg tmpfs sysv-rc hosts resolv hostname apt mode-apt-install-binary mode-archives-chroot
-  lb chroot_dpkg install
-  lb chroot_tmpfs install
-  lb chroot_sysv-rc install
-  lb chroot_hosts install
-  lb chroot_resolv install
-  lb chroot_hostname install
-  lb chroot_apt install-binary
-  lb chroot_archives chroot install
-  lb binary_rootfs
-  mv $prep_results_dir/binary/live/filesystem.squashfs $RESULTS_DIR/$IMAGE_BASENAME.squashfs
-else
-  lb build
-  mv $prep_results_dir/binary/live/filesystem.squashfs $RESULTS_DIR/$IMAGE_BASENAME.squashfs
-  mv $prep_results_dir/live-image-${IB_TARGET_ARCH}.hybrid.iso $RESULTS_DIR/$IMAGE_BASENAME.iso
+SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-$(date '+%s')}"
+
+lb bootstrap
+lb chroot
+lb installer
+lb binary_chroot
+lb chroot_prep install all mode-apt-install-binary mode-archives-chroot
+ln -sf /run/systemd/resolve/stub-resolv.conf chroot/chroot/etc/resolv.conf
+lb binary_rootfs
+
+cp $prep_results_dir/binary/live/filesystem.squashfs $RESULTS_DIR/$IMAGE_BASENAME.squashfs
+if [ "${SQUASHFS_ONLY}" = 1 ]; then
+  exit 0
 fi
+
+lb binary_manifest
+lb binary_package-lists
+lb binary_linux-image
+lb binary_memtest
+lb binary_grub-legacy
+lb binary_grub-pc
+lb binary_grub_cfg
+lb binary_syslinux
+lb binary_disk
+lb binary_loadlin
+lb binary_win32-loader
+lb binary_includes
+lb binary_grub-efi
+lb binary_hooks
+lb binary_checksums
+find binary -newermt "$(date -d@${SOURCE_DATE_EPOCH} '+%Y-%m-%d %H:%M:%S')" -printf "%y %p\n" -exec touch '{}' -d@${SOURCE_DATE_EPOCH} --no-dereference ';' > binary.modified_timestamps
+lb binary_iso
+lb binary_onie
+lb binary_netboot
+lb binary_tar
+lb binary_hdd
+lb binary_zsync
+lb chroot_prep remove all mode-archives-chroot
+lb source
+
+cp $prep_results_dir/live-image-${IB_TARGET_ARCH}.hybrid.iso $RESULTS_DIR/$IMAGE_BASENAME.iso
