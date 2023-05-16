@@ -33,10 +33,13 @@ if [ -z "$1" ]; then
 fi
 if [ "$PLATFORM" = "x86_64" ] || [ "$PLATFORM" = "x86_64-nonfree" ]; then
 	ARCH=amd64
-elif [ "$PLATFORM" = "aarch64" ] || [ "$PLATFORM" = "aarch64-nonfree" ] || [ "$PLATFORM" = "raspberrypi" ]; then
+	QEMU_ARCH=x86_64
+elif [ "$PLATFORM" = "aarch64" ] || [ "$PLATFORM" = "aarch64-nonfree" ] || [ "$PLATFORM" = "raspberrypi" ]  || [ "$PLATFORM" = "rockchip64" ]; then
 	ARCH=arm64
+	QEMU_ARCH=aarch64
 else
 	ARCH="$PLATFORM"
+	QEMU_ARCH="$PLATFORM"
 fi
 VERSION="$(dpkg-deb --fsys-tarfile overlays/deb/embassyos_0.3.x-1_${ARCH}.deb | tar --to-stdout -xvf - ./usr/lib/embassy/VERSION.txt)"
 GIT_HASH="$(dpkg-deb --fsys-tarfile overlays/deb/embassyos_0.3.x-1_${ARCH}.deb | tar --to-stdout -xvf - ./usr/lib/embassy/GIT_HASH.txt | head -c 7)"
@@ -48,6 +51,10 @@ fi
 
 if [ -z "$DSNAME" ]; then
 	DSNAME="$SUITE"
+fi
+
+if [ "$QEMU_ARCH" != "$(uname -m)" ]; then
+  sudo update-binfmts --import qemu-$QEMU_ARCH
 fi
 
 imgbuild_fname="$(mktemp /tmp/exec-mkimage.XXXXXX)"

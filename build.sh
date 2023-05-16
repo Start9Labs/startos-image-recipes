@@ -35,12 +35,8 @@ if [[ "${IB_TARGET_PLATFORM}" =~ -nonfree$ ]] || [ "${IB_TARGET_PLATFORM}" = "ra
   NON_FREE=1
 fi
 SQUASHFS_ONLY=
-if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
+if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ] || [ "${IB_TARGET_PLATFORM}" = "rockchip64" ]; then
   SQUASHFS_ONLY=1
-fi
-
-if [ "$QEMU_ARCH" != "$(uname -m)" ]; then
-  update-binfmts --import qemu-$QEMU_ARCH
 fi
 
 ARCHIVE_AREAS="main contrib"
@@ -59,6 +55,9 @@ if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
   # So we're doing this, cause thank the gods our package name contains a hypen. Cause if it didn't we'd be SOL
 	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --linux-packages raspberrypi"
 	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --linux-flavours kernel"
+  # END stupid ugly hack
+elif [ "${IB_TARGET_PLATFORM}" = "rockchip64" ]; then
+	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --linux-flavours rockchip64"
   # END stupid ugly hack
 fi
 
@@ -83,6 +82,10 @@ lb config \
 mkdir -p config/includes.chroot
 cp -r $base_dir/overlays/* config/includes.chroot/
 
+if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
+  cp -r $base_dir/raspberrypi/* config/includes.chroot/
+fi
+
 mkdir -p config/includes.chroot/etc
 echo start > config/includes.chroot/etc/hostname
 cat > config/includes.chroot/etc/hosts << EOT
@@ -99,6 +102,11 @@ mkdir -p config/archives
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
   curl -fsSL https://archive.raspberrypi.org/debian/raspberrypi.gpg.key | gpg --dearmor -o config/archives/raspi.key
   echo "deb https://archive.raspberrypi.org/debian/ ${IB_SUITE} main" > config/archives/raspi.list
+fi
+
+if [ "${IB_TARGET_PLATFORM}" = "rockchip64" ]; then
+  curl -fsSL https://apt.armbian.com/armbian.key | gpg --dearmor -o config/archives/armbian.key
+  echo "deb https://apt.armbian.com/ ${IB_SUITE} main" > config/archives/armbian.list
 fi
 
 curl -fsSL https://deb.torproject.org/torproject.org/A3C4F0F979CAA22CDBA8F512EE8CBC9E886DDD89.asc > config/archives/tor.key
@@ -142,6 +150,7 @@ rm -rf /deb
 
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
   update-initramfs -c -k 6.1.21-v8+
+  ln -sf /usr/bin/pi-beep /usr/local/bin/beep
 fi
 
 useradd --shell /bin/bash -G embassy -m start9
