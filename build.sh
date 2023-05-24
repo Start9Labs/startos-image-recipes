@@ -115,19 +115,11 @@ echo "deb [arch=${IB_TARGET_ARCH} signed-by=/etc/apt/trusted.gpg.d/tor.key.gpg] 
 curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o config/archives/docker.key
 echo "deb [arch=${IB_TARGET_ARCH} signed-by=/etc/apt/trusted.gpg.d/docker.key.gpg] https://download.docker.com/linux/debian ${IB_SUITE} stable" > config/archives/docker.list
 
-cat > config/archives/backports.pref << EOF
+cat > config/archives/backports.pref.chroot << EOF
 Package: *
 Pin: release a=bullseye-backports
 Pin-Priority: 600
 EOF
-
-if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
-cat > config/archives/raspi.pref << EOF
-Package: firmware-* 
- Pin: origin archive.raspberrypi.org
- Pin-Priority: 700
-EOF
-fi
 
 # Dependencies
 
