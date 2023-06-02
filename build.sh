@@ -8,9 +8,9 @@ echo "Building for architecture: $IB_TARGET_ARCH"
 base_dir="$(dirname "$(readlink -f "$0")")"
 prep_results_dir="$base_dir/results-prep"
 if systemd-detect-virt -qc; then
-  RESULTS_DIR="/srv/artifacts"
+	RESULTS_DIR="/srv/artifacts"
 else
-  RESULTS_DIR="$base_dir/results"
+	RESULTS_DIR="$base_dir/results"
 fi
 echo "Saving results in: $RESULTS_DIR"
 
@@ -28,37 +28,37 @@ if [ "$QEMU_ARCH" = 'amd64' ]; then
 	QEMU_ARCH=x86_64
 elif [ "$QEMU_ARCH" = 'arm64' ]; then
 	QEMU_ARCH=aarch64
-  BOOTLOADERS=grub-efi
+	BOOTLOADERS=grub-efi
 fi
 NON_FREE=
 if [[ "${IB_TARGET_PLATFORM}" =~ -nonfree$ ]] || [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
-  NON_FREE=1
+	NON_FREE=1
 fi
 SQUASHFS_ONLY=
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ] || [ "${IB_TARGET_PLATFORM}" = "rockchip64" ]; then
-  SQUASHFS_ONLY=1
+	SQUASHFS_ONLY=1
 fi
 
 ARCHIVE_AREAS="main contrib"
 if [ "$NON_FREE" = 1 ]; then
-  ARCHIVE_AREAS="main contrib non-free"
+	ARCHIVE_AREAS="main contrib non-free"
 fi
 
 PLATFORM_CONFIG_EXTRAS=
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
-  PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --firmware-binary false"
+	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --firmware-binary false"
 	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --firmware-chroot false"
-  # BEGIN stupid ugly hack
-  # The actual name of the package is `raspberrypi-kernel`
-  # live-build determines thte name of the package for the kernel by combining the `linux-packages` flag, with the `linux-flavours` flag
-  # the `linux-flavours` flag defaults to the architecture, so there's no way to remove the suffix.
-  # So we're doing this, cause thank the gods our package name contains a hypen. Cause if it didn't we'd be SOL
+	# BEGIN stupid ugly hack
+	# The actual name of the package is `raspberrypi-kernel`
+	# live-build determines thte name of the package for the kernel by combining the `linux-packages` flag, with the `linux-flavours` flag
+	# the `linux-flavours` flag defaults to the architecture, so there's no way to remove the suffix.
+	# So we're doing this, cause thank the gods our package name contains a hypen. Cause if it didn't we'd be SOL
 	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --linux-packages raspberrypi"
 	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --linux-flavours kernel"
-  # END stupid ugly hack
+	# END stupid ugly hack
 elif [ "${IB_TARGET_PLATFORM}" = "rockchip64" ]; then
 	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --linux-flavours rockchip64"
-  # END stupid ugly hack
+	# END stupid ugly hack
 fi
 
 cat > /etc/wgetrc << EOF
@@ -66,16 +66,16 @@ retry_connrefused = on
 tries = 100
 EOF
 lb config \
-  --backports true \
-  --bootappend-live "boot=live noautologin" \
-  --bootloaders $BOOTLOADERS \
-  --mirror-bootstrap "https://deb.debian.org/debian/" \
-  -d ${IB_SUITE} \
-  -a ${IB_TARGET_ARCH} \
-  --bootstrap-qemu-arch ${IB_TARGET_ARCH} \
-  --bootstrap-qemu-static $(which qemu-${QEMU_ARCH}-static) \
-  --archive-areas "${ARCHIVE_AREAS}" \
-  $PLATFORM_CONFIG_EXTRAS
+	--backports true \
+	--bootappend-live "boot=live noautologin" \
+	--bootloaders $BOOTLOADERS \
+	--mirror-bootstrap "https://deb.debian.org/debian/" \
+	-d ${IB_SUITE} \
+	-a ${IB_TARGET_ARCH} \
+	--bootstrap-qemu-arch ${IB_TARGET_ARCH} \
+	--bootstrap-qemu-static $(which qemu-${QEMU_ARCH}-static) \
+	--archive-areas "${ARCHIVE_AREAS}" \
+	$PLATFORM_CONFIG_EXTRAS
 
 # Overlays
 
@@ -83,7 +83,7 @@ mkdir -p config/includes.chroot
 cp -r $base_dir/overlays/* config/includes.chroot/
 
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
-  cp -r $base_dir/raspberrypi/* config/includes.chroot/
+	cp -r $base_dir/raspberrypi/* config/includes.chroot/
 fi
 
 mkdir -p config/includes.chroot/etc
@@ -100,22 +100,40 @@ EOT
 mkdir -p config/archives
 
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
-  curl -fsSL https://archive.raspberrypi.org/debian/raspberrypi.gpg.key | gpg --dearmor -o config/archives/raspi.key
-  echo "deb https://archive.raspberrypi.org/debian/ ${IB_SUITE} main" > config/archives/raspi.list
+	curl -fsSL https://archive.raspberrypi.org/debian/raspberrypi.gpg.key | gpg --dearmor -o config/archives/raspi.key
+	echo "deb https://archive.raspberrypi.org/debian/ ${IB_SUITE} main" > config/archives/raspi.list
+
+	cat > config/archives/raspi.pref <<- EOF
+	Package: *
+	Pin: origin "archive.raspberrypi.org"
+	Pin-Priority: 650
+	EOF
 fi
 
 if [ "${IB_TARGET_PLATFORM}" = "rockchip64" ]; then
-  curl -fsSL https://apt.armbian.com/armbian.key | gpg --dearmor -o config/archives/armbian.key
-  echo "deb https://apt.armbian.com/ ${IB_SUITE} main" > config/archives/armbian.list
+	curl -fsSL https://apt.armbian.com/armbian.key | gpg --dearmor -o config/archives/armbian.key
+	echo "deb https://apt.armbian.com/ ${IB_SUITE} main" > config/archives/armbian.list
 fi
 
 curl -fsSL https://deb.torproject.org/torproject.org/A3C4F0F979CAA22CDBA8F512EE8CBC9E886DDD89.asc > config/archives/tor.key
 echo "deb [arch=${IB_TARGET_ARCH} signed-by=/etc/apt/trusted.gpg.d/tor.key.gpg] https://deb.torproject.org/torproject.org ${IB_SUITE} main" > config/archives/tor.list
 
+cat > config/archives/tor.pref << EOF
+Package: *
+Pin: origin "deb.torproject.org"
+Pin-Priority: 700
+EOF
+
 curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o config/archives/docker.key
 echo "deb [arch=${IB_TARGET_ARCH} signed-by=/etc/apt/trusted.gpg.d/docker.key.gpg] https://download.docker.com/linux/debian ${IB_SUITE} stable" > config/archives/docker.list
 
-cat > config/archives/backports.pref.chroot << EOF
+cat > config/archives/docker.pref << EOF
+Package: *
+Pin: origin "download.docker.com"
+Pin-Priority: 700
+EOF
+
+cat > config/archives/backports.pref << EOF
 Package: *
 Pin: release a=bullseye-backports
 Pin-Priority: 600
@@ -128,16 +146,16 @@ dpkg-deb --fsys-tarfile $base_dir/overlays/deb/embassyos_0.3.x-1_${IB_TARGET_ARC
 
 ## Firmware
 if [ "$NON_FREE" = 1 ]; then
-  echo 'firmware-iwlwifi firmware-misc-nonfree firmware-brcm80211' > config/package-lists/nonfree.list.chroot
+	echo 'firmware-iwlwifi firmware-misc-nonfree firmware-brcm80211' > config/package-lists/nonfree.list.chroot
 fi
 
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
-  echo 'raspberrypi-bootloader rpi-update parted' > config/package-lists/bootloader.list.chroot
+	echo 'raspberrypi-bootloader rpi-update parted' > config/package-lists/bootloader.list.chroot
 else
-  echo 'grub-efi grub2-common' > config/package-lists/bootloader.list.chroot
+	echo 'grub-efi grub2-common' > config/package-lists/bootloader.list.chroot
 fi
 if [ "${IB_TARGET_ARCH}" = "amd64" ] || [ "${IB_TARGET_ARCH}" = "i386" ]; then
-  echo 'grub-pc-bin' >> config/package-lists/bootloader.list.chroot
+	echo 'grub-pc-bin' >> config/package-lists/bootloader.list.chroot
 fi
 
 cat > config/hooks/normal/9000-install-startos.hook.chroot << EOF
@@ -149,8 +167,8 @@ apt-get install -y /deb/embassyos_0.3.x-1_${IB_TARGET_ARCH}.deb
 rm -rf /deb
 
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
-  update-initramfs -c -k 6.1.21-v8+
-  ln -sf /usr/bin/pi-beep /usr/local/bin/beep
+	update-initramfs -c -k 6.1.21-v8+
+	ln -sf /usr/bin/pi-beep /usr/local/bin/beep
 fi
 
 useradd --shell /bin/bash -G embassy -m start9
@@ -160,11 +178,11 @@ usermod -aG sudo start9
 echo "start9 ALL=(ALL:ALL) NOPASSWD: ALL" | sudo tee "/etc/sudoers.d/010_start9-nopasswd"
 
 if [ "${IB_TARGET_PLATFORM}" != "raspberrypi" ]; then
-  /usr/lib/embassy/scripts/enable-kiosk
+	/usr/lib/embassy/scripts/enable-kiosk
 fi
 
 if ! [[ "${IB_OS_ENV}" =~ (^|-)dev($|-) ]]; then
-  passwd -l start9
+	passwd -l start9
 fi
 
 EOF
@@ -192,7 +210,7 @@ lb binary_rootfs
 
 cp $prep_results_dir/binary/live/filesystem.squashfs $RESULTS_DIR/$IMAGE_BASENAME.squashfs
 if [ "${SQUASHFS_ONLY}" = 1 ]; then
-  exit 0
+	exit 0
 fi
 
 lb binary_manifest
