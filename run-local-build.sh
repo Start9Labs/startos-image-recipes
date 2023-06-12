@@ -26,7 +26,7 @@ done
 set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
 
 BASEDIR=$(dirname "$(readlink -f "$0")")
-SUITE=bullseye
+
 PLATFORM="$1"
 if [ -z "$1" ]; then
     PLATFORM="$(uname -m)"
@@ -41,6 +41,15 @@ else
 	ARCH="$PLATFORM"
 	QEMU_ARCH="$PLATFORM"
 fi
+
+if [ "$PLATFORM" = "raspberrypi" ]; then
+	SUITE=bullseye
+else
+	SUITE=bookworm
+fi
+
+debspawn list | grep $SUITE || debspawn create $SUITE
+
 VERSION="$(dpkg-deb --fsys-tarfile overlays/deb/embassyos_0.3.x-1_${ARCH}.deb | tar --to-stdout -xvf - ./usr/lib/embassy/VERSION.txt)"
 GIT_HASH="$(dpkg-deb --fsys-tarfile overlays/deb/embassyos_0.3.x-1_${ARCH}.deb | tar --to-stdout -xvf - ./usr/lib/embassy/GIT_HASH.txt | head -c 7)"
 STARTOS_ENV="$(dpkg-deb --fsys-tarfile overlays/deb/embassyos_0.3.x-1_${ARCH}.deb | tar --to-stdout -xvf - ./usr/lib/embassy/ENVIRONMENT.txt)"

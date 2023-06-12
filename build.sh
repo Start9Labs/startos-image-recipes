@@ -41,11 +41,12 @@ fi
 
 ARCHIVE_AREAS="main contrib"
 if [ "$NON_FREE" = 1 ]; then
-	ARCHIVE_AREAS="main contrib non-free"
+	ARCHIVE_AREAS="main contrib non-free-firmware"
 fi
 
 PLATFORM_CONFIG_EXTRAS=
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
+	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --backports true"
 	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --firmware-binary false"
 	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --firmware-chroot false"
 	# BEGIN stupid ugly hack
@@ -56,9 +57,9 @@ if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
 	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --linux-packages raspberrypi"
 	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --linux-flavours kernel"
 	# END stupid ugly hack
+	ARCHIVE_AREAS="main contrib non-free"
 elif [ "${IB_TARGET_PLATFORM}" = "rockchip64" ]; then
 	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --linux-flavours rockchip64"
-	# END stupid ugly hack
 fi
 
 cat > /etc/wgetrc << EOF
@@ -66,7 +67,6 @@ retry_connrefused = on
 tries = 100
 EOF
 lb config \
-	--backports true \
 	--bootappend-live "boot=live noautologin" \
 	--bootloaders $BOOTLOADERS \
 	--mirror-bootstrap "https://deb.debian.org/debian/" \
@@ -103,10 +103,10 @@ if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
 	curl -fsSL https://archive.raspberrypi.org/debian/raspberrypi.gpg.key | gpg --dearmor -o config/archives/raspi.key
 	echo "deb https://archive.raspberrypi.org/debian/ ${IB_SUITE} main" > config/archives/raspi.list
 
-	cat > config/archives/raspi.pref <<- EOF
+	cat > config/archives/backports.pref <<- EOF
 	Package: *
-	Pin: origin "archive.raspberrypi.org"
-	Pin-Priority: 650
+	Pin: release a=bullseye-backports
+	Pin-Priority: 500
 	EOF
 fi
 
@@ -118,26 +118,8 @@ fi
 curl -fsSL https://deb.torproject.org/torproject.org/A3C4F0F979CAA22CDBA8F512EE8CBC9E886DDD89.asc > config/archives/tor.key
 echo "deb [arch=${IB_TARGET_ARCH} signed-by=/etc/apt/trusted.gpg.d/tor.key.gpg] https://deb.torproject.org/torproject.org ${IB_SUITE} main" > config/archives/tor.list
 
-cat > config/archives/tor.pref << EOF
-Package: *
-Pin: origin "deb.torproject.org"
-Pin-Priority: 700
-EOF
-
 curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o config/archives/docker.key
 echo "deb [arch=${IB_TARGET_ARCH} signed-by=/etc/apt/trusted.gpg.d/docker.key.gpg] https://download.docker.com/linux/debian ${IB_SUITE} stable" > config/archives/docker.list
-
-cat > config/archives/docker.pref << EOF
-Package: *
-Pin: origin "download.docker.com"
-Pin-Priority: 700
-EOF
-
-cat > config/archives/backports.pref << EOF
-Package: *
-Pin: release a=bullseye-backports
-Pin-Priority: 600
-EOF
 
 # Dependencies
 
@@ -146,11 +128,11 @@ dpkg-deb --fsys-tarfile $base_dir/overlays/deb/embassyos_0.3.x-1_${IB_TARGET_ARC
 
 ## Firmware
 if [ "$NON_FREE" = 1 ]; then
-	echo 'firmware-iwlwifi firmware-misc-nonfree firmware-brcm80211' > config/package-lists/nonfree.list.chroot
+	echo 'firmware-iwlwifi firmware-misc-nonfree firmware-brcm80211 firmware-realtek firmware-atheros firmware-libertas firmware-amd-graphics' > config/package-lists/nonfree.list.chroot
 fi
 
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
-	echo 'raspberrypi-bootloader rpi-update parted' > config/package-lists/bootloader.list.chroot
+	echo 'raspberrypi-bootloader rpi-update parted crda' > config/package-lists/bootloader.list.chroot
 else
 	echo 'grub-efi grub2-common' > config/package-lists/bootloader.list.chroot
 fi
