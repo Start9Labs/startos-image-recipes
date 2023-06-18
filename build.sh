@@ -148,6 +148,14 @@ set -e
 apt-get install -y /deb/embassyos_0.3.x-1_${IB_TARGET_ARCH}.deb
 rm -rf /deb
 
+if [ "${IB_SUITE}" = bookworm ]; then
+	echo 'deb https://deb.debian.org/debian/ bullseye main' > /etc/apt/sources.list.d/bullseye.list
+	apt-get update
+	apt-get install -y postgresql-13
+	rm /etc/apt/sources.list.d/bullseye.list
+	apt-get update
+fi
+
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
 	update-initramfs -c -k 6.1.21-v8+
 	ln -sf /usr/bin/pi-beep /usr/local/bin/beep
