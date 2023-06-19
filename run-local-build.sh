@@ -45,7 +45,7 @@ fi
 if [ "$PLATFORM" = "raspberrypi" ]; then
 	SUITE=bullseye
 else
-	SUITE=bookworm
+	SUITE=bullseye # bookworm
 fi
 
 debspawn list | grep $SUITE || debspawn create $SUITE

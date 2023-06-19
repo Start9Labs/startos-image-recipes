@@ -102,7 +102,9 @@ mkdir -p config/archives
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
 	curl -fsSL https://archive.raspberrypi.org/debian/raspberrypi.gpg.key | gpg --dearmor -o config/archives/raspi.key
 	echo "deb https://archive.raspberrypi.org/debian/ ${IB_SUITE} main" > config/archives/raspi.list
+fi
 
+if [ "${IB_SUITE}" = "bullseye" ]; then
 	cat > config/archives/backports.pref <<- EOF
 	Package: *
 	Pin: release a=bullseye-backports
