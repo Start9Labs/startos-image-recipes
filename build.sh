@@ -46,7 +46,6 @@ fi
 
 PLATFORM_CONFIG_EXTRAS=
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
-	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --backports true"
 	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --firmware-binary false"
 	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --firmware-chroot false"
 	# BEGIN stupid ugly hack
@@ -67,6 +66,7 @@ retry_connrefused = on
 tries = 100
 EOF
 lb config \
+	--backports true \
 	--bootappend-live "boot=live noautologin" \
 	--bootloaders $BOOTLOADERS \
 	--mirror-bootstrap "https://deb.debian.org/debian/" \
