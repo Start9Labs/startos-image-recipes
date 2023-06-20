@@ -41,7 +41,7 @@ fi
 
 ARCHIVE_AREAS="main contrib"
 if [ "$NON_FREE" = 1 ]; then
-	ARCHIVE_AREAS="main contrib non-free-firmware"
+	ARCHIVE_AREAS="main contrib non-free"
 fi
 
 PLATFORM_CONFIG_EXTRAS=
@@ -56,7 +56,6 @@ if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
 	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --linux-packages raspberrypi"
 	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --linux-flavours kernel"
 	# END stupid ugly hack
-	ARCHIVE_AREAS="main contrib non-free"
 elif [ "${IB_TARGET_PLATFORM}" = "rockchip64" ]; then
 	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --linux-flavours rockchip64"
 fi
