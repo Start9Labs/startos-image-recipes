@@ -75,8 +75,6 @@ lb config \
 	--mirror-bootstrap "https://deb.debian.org/debian/" \
 	--mirror-chroot "https://deb.debian.org/debian/" \
 	--mirror-chroot-security "https://security.debian.org/debian-security" \
-	--mirror-chroot-updates "https://deb.debian.org/debian/" \
-	--mirror-chroot-backports "https://deb.debian.org/debian/" \
 	-d ${IB_SUITE} \
 	-a ${IB_TARGET_ARCH} \
 	--bootstrap-qemu-arch ${IB_TARGET_ARCH} \
