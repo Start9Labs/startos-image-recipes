@@ -111,14 +111,14 @@ cat > config/bootloaders/syslinux/syslinux.cfg << EOF
 include menu.cfg
 default vesamenu.c32
 prompt 0
-timeout 5
+timeout 50
 EOF
 
 cat > config/bootloaders/isolinux/isolinux.cfg << EOF
 include menu.cfg
 default vesamenu.c32
 prompt 0
-timeout 5
+timeout 50
 EOF
 
 rm config/bootloaders/syslinux_common/splash.svg
