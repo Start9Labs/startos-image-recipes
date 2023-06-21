@@ -65,10 +65,18 @@ retry_connrefused = on
 tries = 100
 EOF
 lb config \
+	--iso-application "StartOS v${VERSION_FULL} ${IB_TARGET_ARCH}" \
+	--iso-volume "StartOS v${VERSION} ${IB_TARGET_ARCH}" \
+	--iso-preparer "START9 LABS; HTTPS://START9.COM" \
+	--iso-publisher "START9 LABS; HTTPS://START9.COM" \
 	--backports true \
 	--bootappend-live "boot=live noautologin" \
 	--bootloaders $BOOTLOADERS \
 	--mirror-bootstrap "https://deb.debian.org/debian/" \
+	--mirror-chroot "https://deb.debian.org/debian/" \
+	--mirror-chroot-security "https://security.debian.org/debian-security" \
+	--mirror-chroot-updates "https://deb.debian.org/debian/" \
+	--mirror-chroot-backports "https://deb.debian.org/debian/" \
 	-d ${IB_SUITE} \
 	-a ${IB_TARGET_ARCH} \
 	--bootstrap-qemu-arch ${IB_TARGET_ARCH} \
@@ -93,6 +101,30 @@ cat > config/includes.chroot/etc/hosts << EOT
 ff02::1         ip6-allnodes
 ff02::2         ip6-allrouters
 EOT
+
+# Bootloaders
+
+rm -rf config/bootloaders
+cp -r /usr/share/live/build/bootloaders config/bootloaders
+
+cat > config/bootloaders/syslinux/syslinux.cfg << EOF
+include menu.cfg
+default vesamenu.c32
+prompt 0
+timeout 5
+EOF
+
+cat > config/bootloaders/isolinux/isolinux.cfg << EOF
+include menu.cfg
+default vesamenu.c32
+prompt 0
+timeout 5
+EOF
+
+rm config/bootloaders/syslinux_common/splash.svg
+cp $base_dir/splash.png config/bootloaders/syslinux_common/splash.png
+
+sed -i -e '2i set timeout=5' config/bootloaders/grub-pc/config.cfg
 
 # Archives
 
@@ -177,17 +209,6 @@ if ! [[ "${IB_OS_ENV}" =~ (^|-)dev($|-) ]]; then
 fi
 
 EOF
-
-cat > config/hooks/live/9000-grub-set-default.hook.binary << EOF
-sed -i -e '1i set default=0' boot/grub/config.cfg
-sed -i -e '2i set timeout=5' boot/grub/config.cfg
-EOF
-
-if [[ "$BOOTLOADERS" =~ isolinux ]]; then
-cat > config/hooks/live/isolinux.hook.binary << EOF
-sed -i 's|timeout 0|timeout 5|' isolinux/isolinux.cfg
-EOF
-fi
 
 SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-$(date '+%s')}"
 
