@@ -75,7 +75,6 @@ lb config \
 	--mirror-bootstrap "https://deb.debian.org/debian/" \
 	--mirror-chroot "https://deb.debian.org/debian/" \
 	--mirror-chroot-security "https://security.debian.org/debian-security" \
-	--grub-splash $base_dir/splash.png \
 	-d ${IB_SUITE} \
 	-a ${IB_TARGET_ARCH} \
 	--bootstrap-qemu-arch ${IB_TARGET_ARCH} \
@@ -123,6 +122,7 @@ EOF
 rm config/bootloaders/syslinux_common/splash.svg
 cp $base_dir/splash.png config/bootloaders/syslinux_common/splash.png
 cp $base_dir/splash.png config/bootloaders/isolinux/splash.png
+cp $base_dir/splash.png config/bootloaders/grub-pc/splash.png
 
 sed -i -e '2i set timeout=5' config/bootloaders/grub-pc/config.cfg
 
