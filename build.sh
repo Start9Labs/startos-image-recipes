@@ -123,6 +123,7 @@ EOF
 
 rm config/bootloaders/syslinux_common/splash.svg
 cp $base_dir/splash.png config/bootloaders/syslinux_common/splash.png
+cp $base_dir/splash.png config/bootloaders/isolinux/splash.png
 
 sed -i -e '2i set timeout=5' config/bootloaders/grub-pc/config.cfg
 
