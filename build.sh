@@ -41,7 +41,11 @@ fi
 
 ARCHIVE_AREAS="main contrib"
 if [ "$NON_FREE" = 1 ]; then
-	ARCHIVE_AREAS="main contrib non-free"
+	if [ "$IB_SUITE" = "bullseye" ]; then
+		ARCHIVE_AREAS="$ARCHIVE_AREAS non-free"
+	elif [ "$IB_SUITE" = "bookworm" ]; then
+		ARCHIVE_AREAS="$ARCHIVE_AREAS non-free-firmware"
+	fi
 fi
 
 PLATFORM_CONFIG_EXTRAS=
