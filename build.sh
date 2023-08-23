@@ -136,7 +136,7 @@ mkdir -p config/archives
 
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
 	curl -fsSL https://archive.raspberrypi.org/debian/raspberrypi.gpg.key | gpg --dearmor -o config/archives/raspi.key
-	echo "deb https://archive.raspberrypi.org/debian/ ${IB_SUITE} main" > config/archives/raspi.list
+	echo "deb https://archive.raspberrypi.org/debian/ bullseye main" > config/archives/raspi.list
 fi
 
 if [ "${IB_SUITE}" = "bullseye" ]; then
@@ -197,7 +197,11 @@ if [ "${IB_SUITE}" = bookworm ]; then
 fi
 
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
-	update-initramfs -c -k 6.1.21-v8+
+	for f in /usr/lib/modules/*; do
+    	v=${f#/usr/lib/modules/}
+    	extract-ikconfig "/usr/lib/modules/$v/kernel/kernel/configs.ko.xz" > /boot/config-$v
+		update-initramfs -c -k $v
+	done
 	ln -sf /usr/bin/pi-beep /usr/local/bin/beep
 fi
 
