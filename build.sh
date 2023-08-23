@@ -172,7 +172,7 @@ if [ "$NON_FREE" = 1 ]; then
 fi
 
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
-	echo 'raspberrypi-bootloader rpi-update parted crda' > config/package-lists/bootloader.list.chroot
+	echo 'raspberrypi-bootloader rpi-update parted' > config/package-lists/bootloader.list.chroot
 else
 	echo 'grub-efi grub2-common' > config/package-lists/bootloader.list.chroot
 fi
