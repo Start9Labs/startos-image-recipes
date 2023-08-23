@@ -199,6 +199,7 @@ fi
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
 	for f in /usr/lib/modules/*; do
     	v=${f#/usr/lib/modules/}
+		echo "Configuring raspi kernel '$v'"
     	extract-ikconfig "/usr/lib/modules/$v/kernel/kernel/configs.ko.xz" > /boot/config-$v
 		update-initramfs -c -k $v
 	done
