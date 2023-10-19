@@ -42,11 +42,7 @@ else
 	QEMU_ARCH="$PLATFORM"
 fi
 
-if [ "$PLATFORM" = "raspberrypi" ]; then
-	SUITE=bullseye
-else
-	SUITE=bullseye # bookworm
-fi
+SUITE=bookworm
 
 debspawn list | grep $SUITE || debspawn create $SUITE
 

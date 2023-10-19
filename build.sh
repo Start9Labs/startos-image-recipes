@@ -41,7 +41,11 @@ fi
 
 ARCHIVE_AREAS="main contrib"
 if [ "$NON_FREE" = 1 ]; then
-	ARCHIVE_AREAS="main contrib non-free"
+	if [ "$IB_SUITE" = "bullseye" ]; then
+		ARCHIVE_AREAS="$ARCHIVE_AREAS non-free"
+	elif [ "$IB_SUITE" = "bookworm" ]; then
+		ARCHIVE_AREAS="$ARCHIVE_AREAS non-free-firmware"
+	fi
 fi
 
 PLATFORM_CONFIG_EXTRAS=
@@ -94,8 +98,8 @@ fi
 mkdir -p config/includes.chroot/etc
 echo start > config/includes.chroot/etc/hostname
 cat > config/includes.chroot/etc/hosts << EOT
-127.0.0.1       localhost
-::1             localhost ip6-localhost ip6-loopback
+127.0.0.1       localhost start
+::1             localhost start ip6-localhost ip6-loopback
 ff02::1         ip6-allnodes
 ff02::2         ip6-allrouters
 EOT
@@ -132,7 +136,7 @@ mkdir -p config/archives
 
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
 	curl -fsSL https://archive.raspberrypi.org/debian/raspberrypi.gpg.key | gpg --dearmor -o config/archives/raspi.key
-	echo "deb https://archive.raspberrypi.org/debian/ ${IB_SUITE} main" > config/archives/raspi.list
+	echo "deb https://archive.raspberrypi.org/debian/ bullseye main" > config/archives/raspi.list
 fi
 
 if [ "${IB_SUITE}" = "bullseye" ]; then
@@ -154,6 +158,9 @@ echo "deb [arch=${IB_TARGET_ARCH} signed-by=/etc/apt/trusted.gpg.d/tor.key.gpg] 
 curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o config/archives/docker.key
 echo "deb [arch=${IB_TARGET_ARCH} signed-by=/etc/apt/trusted.gpg.d/docker.key.gpg] https://download.docker.com/linux/debian ${IB_SUITE} stable" > config/archives/docker.list
 
+curl -fsSL https://download.opensuse.org/repositories/devel:kubic:libcontainers:unstable/Debian_Testing/Release.key | gpg --dearmor -o config/archives/podman.key
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/trusted.gpg.d/podman.key.gpg] https://download.opensuse.org/repositories/devel:kubic:libcontainers:unstable/Debian_Testing/ /" > config/archives/podman.list
+
 # Dependencies
 
 ## Base dependencies
@@ -165,7 +172,7 @@ if [ "$NON_FREE" = 1 ]; then
 fi
 
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
-	echo 'raspberrypi-bootloader rpi-update parted crda' > config/package-lists/bootloader.list.chroot
+	echo 'raspberrypi-bootloader rpi-update parted' > config/package-lists/bootloader.list.chroot
 else
 	echo 'grub-efi grub2-common' > config/package-lists/bootloader.list.chroot
 fi
@@ -190,7 +197,12 @@ if [ "${IB_SUITE}" = bookworm ]; then
 fi
 
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
-	update-initramfs -c -k 6.1.21-v8+
+	for f in /usr/lib/modules/*; do
+    	v=\${f#/usr/lib/modules/}
+		echo "Configuring raspi kernel '\$v'"
+    	extract-ikconfig "/usr/lib/modules/\$v/kernel/kernel/configs.ko.xz" > /boot/config-\$v
+		update-initramfs -c -k \$v
+	done
 	ln -sf /usr/bin/pi-beep /usr/local/bin/beep
 fi
 
